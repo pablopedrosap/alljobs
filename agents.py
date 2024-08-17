@@ -1,5 +1,12 @@
 from crewai import Agent
-from tools import VSCodeTool, GitTool, CodeAnalysisTool, FileOperationTool
+from tools import VSCodeTool, GitTool, CodeAnalysisTool, FileOperationTool, WebScrapingTool
+import os
+from langchain_openai import ChatOpenAI
+import json
+
+
+llm4o = ChatOpenAI(model="chatgpt-4o-latest")
+llm4o_mini = ChatOpenAI(model="gpt-3.5-turbo")
 
 class ProjectManagerAgent(Agent):
     def __init__(self):
@@ -11,7 +18,8 @@ class ProjectManagerAgent(Agent):
             tasks, ensure deadlines are met, and facilitate communication 
             between team members.""",
             tools=[FileOperationTool()],
-            verbose=True
+            verbose=True,
+            llm=llm4o
         )
 
 class ArchitectAgent(Agent):
@@ -24,7 +32,8 @@ class ArchitectAgent(Agent):
             that the architecture is efficient, maintainable, and aligned with 
             project requirements.""",
             tools=[FileOperationTool()],
-            verbose=True
+            verbose=True,
+            llm=llm4o
         )
 
 class DeveloperAgent(Agent):
@@ -37,7 +46,8 @@ class DeveloperAgent(Agent):
             on implementing new features and fixing bugs.""",
             tools=[VSCodeTool(), GitTool(), FileOperationTool()],
             verbose=True,
-            allow_delegation=True
+            allow_delegation=True,
+            llm=llm4o
         )
 
 class CodeReviewerAgent(Agent):
@@ -49,7 +59,8 @@ class CodeReviewerAgent(Agent):
             maintaining high code quality standards. You review code for 
             efficiency, readability, and adherence to best practices.""",
             tools=[CodeAnalysisTool(), FileOperationTool()],
-            verbose=True
+            verbose=True,
+            llm=llm4o
         )
 
 class DevOpsAgent(Agent):
@@ -62,7 +73,8 @@ class DevOpsAgent(Agent):
             smooth deployments. You work closely with developers to optimize 
             the development pipeline.""",
             tools=[GitTool(), FileOperationTool()],
-            verbose=True
+            verbose=True,
+            llm=llm4o
         )
 
 class WebScrapingAgent(Agent):
@@ -74,5 +86,6 @@ class WebScrapingAgent(Agent):
             including gathering documentation, finding code examples, and scraping 
             elements for automated testing.""",
             tools=[WebScrapingTool(), FileOperationTool()],
-            verbose=True
+            verbose=True,
+            llm=llm4o
         )

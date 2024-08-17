@@ -3,10 +3,12 @@ from tools import VSCodeTool, GitTool, CodeAnalysisTool, FileOperationTool, WebS
 import os
 from langchain_openai import ChatOpenAI
 import json
+from pydantic import Field, BaseModel
+
 
 
 llm4o = ChatOpenAI(model="chatgpt-4o-latest")
-llm4o_mini = ChatOpenAI(model="gpt-3.5-turbo")
+llm4o_mini = ChatOpenAI(model="gpt-4o-mini")
 
 class ProjectManagerAgent(Agent):
     def __init__(self):
@@ -19,32 +21,33 @@ class ProjectManagerAgent(Agent):
             between team members.""",
             tools=[FileOperationTool()],
             verbose=True,
-            llm=llm4o
+            llm=llm4o_mini
         )
 
 class ArchitectAgent(Agent):
+
     def __init__(self):
-        self.architecture_tool = ArchitectureTrackingTool()
         super().__init__(
             role='System Architect',
             goal='Design and maintain a robust and scalable system architecture',
             backstory="""You're a skilled system architect responsible for
-             designing the overall structure of the software system. You ensure
-             that the architecture is efficient, maintainable, and aligned with
-             project requirements. You also keep track of all project folders and files.""",
-            tools=[self.architecture_tool, FileOperationTool()],
+                         designing the overall structure of the software system. 
+                         You ensure that the architecture is efficient, maintainable, 
+                         and aligned with project requirements. You also keep track 
+                         of all project folders and files.""",
+            tools=[FileOperationTool(), ArchitectureTrackingTool()],
             verbose=True,
-            llm=llm4o
+            llm=llm4o_mini
         )
 
     def update_architecture(self, item_type: str, path: str, file_type: str = ""):
         if item_type == "folder":
-            self.architecture_tool._run("add_folder", path)
+            self.ArchitectureTrackingTool().run("add_folder", path)
         elif item_type == "file":
-            self.architecture_tool._run("add_file", path, file_type)
+            self.ArchitectureTrackingTool().run("add_file", path, file_type)
 
     def get_architecture(self):
-        return self.architecture_tool._run("get_structure")
+        return self._architecture_tool.run("get_structure")
 
 # In agents.py
 class DeveloperAgent(Agent):
@@ -59,7 +62,7 @@ class DeveloperAgent(Agent):
             tools=[VSCodeTool(), GitTool(), FileOperationTool(), ArchitectureTrackingTool()],
             verbose=True,
             allow_delegation=True,
-            llm=llm4o
+            llm=llm4o_mini
         )
 
     def implement_feature(self, feature_name: str, feature_description: str, architecture: dict):
@@ -98,7 +101,7 @@ class CodeReviewerAgent(Agent):
             efficiency, readability, and adherence to best practices.""",
             tools=[CodeAnalysisTool(), FileOperationTool()],
             verbose=True,
-            llm=llm4o
+            llm=llm4o_mini
         )
 
 class DevOpsAgent(Agent):
@@ -112,7 +115,7 @@ class DevOpsAgent(Agent):
             the development pipeline.""",
             tools=[GitTool(), FileOperationTool()],
             verbose=True,
-            llm=llm4o
+            llm=llm4o_mini
         )
 
 class WebScrapingAgent(Agent):
@@ -125,7 +128,7 @@ class WebScrapingAgent(Agent):
             or examples unless explicitly requested.""",
             tools=[WebScrapingTool(), FileOperationTool()],
             verbose=True,
-            llm=llm4o
+            llm=llm4o_mini
         )
 
     def scrape_relevant_info(self, url: str, info_type: str) -> str:

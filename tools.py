@@ -7,22 +7,27 @@ from urllib.parse import urlparse
 import re
 from pydantic import BaseModel, Field
 from typing import Dict, Any
+import time  
 
-class ArchitectureTrackingTool(BaseModel):
-    name: str = Field(default="Architecture Tracking Tool")
-    description: str = Field(default="Tracks and manages project architecture, folders, and files")
-    architecture: Dict[str, Any] = Field(default_factory=lambda: {
-        "src": {
-            "components": {},
-            "utils": {},
-            "services": {},
-            "tests": {}
-        },
-        "docs": {},
-        "config": {}
-    })
+class ArchitectureTrackingTool(BaseTool):
+    name: str = "Architecture Tracking Tool"
+    description: str = "Tracks and manages project architecture, folders, and files"
+    architecture: Dict[str, Any] = Field(default_factory=dict)
 
-    def run(self, operation: str, path: str = "", file_type: str = "") -> str:
+    def __init__(self):
+        super().__init__()
+        self.architecture = {
+            "src": {
+                "components": {},
+                "utils": {},
+                "services": {},
+                "tests": {}
+            },
+            "docs": {},
+            "config": {}
+        }
+
+    def _run(self, operation: str, path: str = "", file_type: str = "") -> str:
         if operation == "add_file":
             return self._add_file(path, file_type)
         elif operation == "get_structure":
@@ -38,9 +43,15 @@ class ArchitectureTrackingTool(BaseModel):
                 current[part] = {}
             current = current[part]
         current[parts[-1]] = file_type
-        return f"File added: {path} (Type: {file_type})"
 
-    def _get_structure_string(self, structure: Dict[str, Any] = None, indent: int = 0) -> str:
+        # Ensure the directory exists
+        directory = os.path.dirname(path)
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+
+        return f"File added: {path} (Type: {file_type})"
+    
+    def _get_structure_string(self, structure: dict = None, indent: int = 0) -> str:
         if structure is None:
             structure = self.architecture
         result = ""
@@ -100,6 +111,12 @@ class FileOperationTool(BaseTool):
     description: str = "Performs file operations like reading and writing"
 
     def _run(self, operation: str, file_path: str, content: str = "") -> str:
+        directory = os.path.dirname(file_path)
+        
+        # Ensure the directory exists
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+        
         if operation == "read":
             try:
                 with open(file_path, 'r') as file:
@@ -116,6 +133,7 @@ class FileOperationTool(BaseTool):
                 return f"Error writing to file: {str(e)}"
         else:
             return "Invalid operation. Use 'read' or 'write'."
+
 
 class WebScrapingTool(BaseTool):
     name: str = "Web Scraping Tool"

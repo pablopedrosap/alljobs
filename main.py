@@ -105,7 +105,7 @@ class AIDevelopmentSystem:
 
 def main():
     ai_system = AIDevelopmentSystem()
-    feature_description = "Implement a user authentication system with OAuth2 support and web-based interactions"
+    feature_description = "create a website to sell gsnus, a snus with no nicotine with natural herbs "
     result = ai_system.run(feature_description)
     print(result)
 

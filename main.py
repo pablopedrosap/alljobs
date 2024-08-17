@@ -7,7 +7,6 @@ OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
 
 class AgentManager:
-    
     def __init__(self):
         self.pm = ProjectManagerAgent()
         self.architect = ArchitectAgent()
@@ -57,11 +56,13 @@ class AIDevelopmentSystem:
             output_file="scraped_data.txt"
         )
 
+        architecture_structure = self.architecture_tool.run("get_structure")
+
         implement_task = Task(
-            description=f"Implement the designed feature: {feature_description}",
+            description=f"Implement the designed feature: {feature_description}. The current architecture structure is as follows:\n{architecture_structure}",
             agent=self.agent_manager.get_agent("developer"),
             expected_output="Completed code implementation of the feature with appropriate file structure",
-            context=[self.architecture_tool.run("get_structure")],  # Use .run() instead of ._run()
+            context=[],  # No additional context
             output_file="implementation_report.txt"
         )
 

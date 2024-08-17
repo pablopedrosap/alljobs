@@ -3,6 +3,7 @@ import os
 from crewai_tools import BaseTool
 import requests
 from bs4 import BeautifulSoup
+<<<<<<< HEAD
 from urllib.parse import urlparse
 import re
 from pydantic import BaseModel, Field
@@ -50,6 +51,9 @@ class ArchitectureTrackingTool(BaseModel):
                 result += self._get_structure_string(value, indent + 1)
         return result
     
+=======
+
+>>>>>>> origin/main
 
 class VSCodeTool(BaseTool):
     name: str = "VS Code Interaction Tool"
@@ -63,6 +67,7 @@ class VSCodeTool(BaseTool):
             return f"Error executing VS Code command: {e.stderr}"
 
 class GitTool(BaseTool):
+<<<<<<< HEAD
     name: str = "Improved Git Operations Tool"
     description: str = "Performs Git operations with better error handling and abstraction"
 
@@ -82,6 +87,17 @@ class GitTool(BaseTool):
     def push_to_remote(self, branch: str = "main") -> str:
         return self._run(f"push origin {branch}")
 
+=======
+    name: str = "Git Operations Tool"
+    description: str = "Performs Git operations for version control"
+
+    def _run(self, operation: str) -> str:
+        try:
+            result = subprocess.run(f"git {operation}", shell=True, check=True, capture_output=True, text=True)
+            return f"Git operation executed: {result.stdout}"
+        except subprocess.CalledProcessError as e:
+            return f"Error executing Git operation: {e.stderr}"
+>>>>>>> origin/main
 
 class CodeAnalysisTool(BaseTool):
     name: str = "Code Analysis Tool"
@@ -103,8 +119,12 @@ class FileOperationTool(BaseTool):
         if operation == "read":
             try:
                 with open(file_path, 'r') as file:
+<<<<<<< HEAD
                     content = file.read()
                     return content if content else "File is empty"
+=======
+                    return file.read()
+>>>>>>> origin/main
             except IOError as e:
                 return f"Error reading file: {str(e)}"
         elif operation == "write":
@@ -119,13 +139,20 @@ class FileOperationTool(BaseTool):
 
 class WebScrapingTool(BaseTool):
     name: str = "Web Scraping Tool"
+<<<<<<< HEAD
     description: str = "Tool to scrape web pages and extract relevant data"
 
     def _run(self, url: str, target_info: str) -> str:
+=======
+    description: str = "Tool to scrape web pages and extract data"
+
+    def _run(self, url: str, element: str = None) -> str:
+>>>>>>> origin/main
         try:
             response = requests.get(url)
             response.raise_for_status()
             soup = BeautifulSoup(response.text, 'html.parser')
+<<<<<<< HEAD
 
             # Extract domain for potential filtering
             domain = urlparse(url).netloc
@@ -166,6 +193,14 @@ class WebScrapingTool(BaseTool):
         code_snippets = soup.find_all('code')
         return "\n\n".join([snippet.get_text(strip=True) for snippet in code_snippets])
 
+=======
+            if element:
+                data = soup.select(element)
+                return '\n'.join([str(elem) for elem in data])
+            return soup.prettify()
+        except requests.RequestException as e:
+            return f"Error scraping the web: {str(e)}"
+>>>>>>> origin/main
         
 class CodeGenerationTool(BaseTool):
     name: str = "Code Generation Tool"

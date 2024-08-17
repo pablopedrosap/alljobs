@@ -1,4 +1,5 @@
 from crewai import Agent
+<<<<<<< HEAD
 from tools import VSCodeTool, GitTool, CodeAnalysisTool, FileOperationTool, WebScrapingTool, ArchitectureTrackingTool
 import os
 from langchain_openai import ChatOpenAI
@@ -7,6 +8,9 @@ import json
 
 llm4o = ChatOpenAI(model="chatgpt-4o-latest")
 llm4o_mini = ChatOpenAI(model="gpt-3.5-turbo")
+=======
+from tools import VSCodeTool, GitTool, CodeAnalysisTool, FileOperationTool
+>>>>>>> origin/main
 
 class ProjectManagerAgent(Agent):
     def __init__(self):
@@ -18,12 +22,17 @@ class ProjectManagerAgent(Agent):
             tasks, ensure deadlines are met, and facilitate communication 
             between team members.""",
             tools=[FileOperationTool()],
+<<<<<<< HEAD
             verbose=True,
             llm=llm4o
+=======
+            verbose=True
+>>>>>>> origin/main
         )
 
 class ArchitectAgent(Agent):
     def __init__(self):
+<<<<<<< HEAD
         self.architecture_tool = ArchitectureTrackingTool()
         super().__init__(
             role='System Architect',
@@ -47,10 +56,24 @@ class ArchitectAgent(Agent):
         return self.architecture_tool._run("get_structure")
 
 # In agents.py
+=======
+        super().__init__(
+            role='System Architect',
+            goal='Design a robust and scalable system architecture',
+            backstory="""You're a skilled system architect responsible for 
+            designing the overall structure of the software system. You ensure 
+            that the architecture is efficient, maintainable, and aligned with 
+            project requirements.""",
+            tools=[FileOperationTool()],
+            verbose=True
+        )
+
+>>>>>>> origin/main
 class DeveloperAgent(Agent):
     def __init__(self):
         super().__init__(
             role='Software Developer',
+<<<<<<< HEAD
             goal='Implement high-quality code for the project',
             backstory="""You're a skilled software developer responsible for
              writing efficient and maintainable code. You're currently working
@@ -88,6 +111,17 @@ class DeveloperAgent(Agent):
         file_tool = FileOperationTool()
         file_tool._run("write", file_path, content)
 
+=======
+            goal='Implement high-quality code',
+            backstory="""You're a skilled software developer responsible for 
+            writing efficient and maintainable code. You're currently working 
+            on implementing new features and fixing bugs.""",
+            tools=[VSCodeTool(), GitTool(), FileOperationTool()],
+            verbose=True,
+            allow_delegation=True
+        )
+
+>>>>>>> origin/main
 class CodeReviewerAgent(Agent):
     def __init__(self):
         super().__init__(
@@ -97,8 +131,12 @@ class CodeReviewerAgent(Agent):
             maintaining high code quality standards. You review code for 
             efficiency, readability, and adherence to best practices.""",
             tools=[CodeAnalysisTool(), FileOperationTool()],
+<<<<<<< HEAD
             verbose=True,
             llm=llm4o
+=======
+            verbose=True
+>>>>>>> origin/main
         )
 
 class DevOpsAgent(Agent):
@@ -111,14 +149,19 @@ class DevOpsAgent(Agent):
             smooth deployments. You work closely with developers to optimize 
             the development pipeline.""",
             tools=[GitTool(), FileOperationTool()],
+<<<<<<< HEAD
             verbose=True,
             llm=llm4o
+=======
+            verbose=True
+>>>>>>> origin/main
         )
 
 class WebScrapingAgent(Agent):
     def __init__(self):
         super().__init__(
             role='Web Scraper',
+<<<<<<< HEAD
             goal='Extract relevant information from the web to assist in development tasks',
             backstory="""You are an expert at extracting specific, relevant information from websites. 
             You focus on gathering only the necessary data for the current task, avoiding irrelevant content 
@@ -154,3 +197,12 @@ class WebScrapingAgent(Agent):
             "code_snippets": ["function", "class", "method"]
         }
         return any(keyword in line.lower() for keyword in keywords.get(info_type, []))
+=======
+            goal='Extract necessary information from the web to assist in development tasks',
+            backstory="""You specialize in extracting data from websites, 
+            including gathering documentation, finding code examples, and scraping 
+            elements for automated testing.""",
+            tools=[WebScrapingTool(), FileOperationTool()],
+            verbose=True
+        )
+>>>>>>> origin/main

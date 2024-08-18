@@ -1,90 +1,115 @@
 import os
-from crewai import Crew, Task
-from agents import ProjectManagerAgent, ArchitectAgent, DeveloperAgent, CodeReviewerAgent, DevOpsAgent, WebScrapingAgent
-from tools import CodeGenerationTool, ArchitectureTrackingTool
+from crewai import Crew, Task, Process
+from langchain_openai import ChatOpenAI
+from agents import AgentManager
+from tools import ArchitectureTrackingTool, FileOperationTool, WebScrapingTool
 
-OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
-ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
-
-class AgentManager:
-    def __init__(self):
-        self.pm = ProjectManagerAgent()
-        self.architect = ArchitectAgent()
-        self.developer = DeveloperAgent()
-        self.reviewer = CodeReviewerAgent()
-        self.devops = DevOpsAgent()
-        self.web_scraper = WebScrapingAgent()
-
-    def get_agent(self, agent_type: str):
-        return getattr(self, agent_type.lower(), None)
-
-    def delegate_task(self, task_description: str, agent_type: str):
-        agent = self.get_agent(agent_type)
-        if agent:
-            return agent.execute_task(task_description)
-        else:
-            return f"No agent found for type: {agent_type}"
-        
 class AIDevelopmentSystem:
     def __init__(self):
         self.agent_manager = AgentManager()
-        self.code_gen = CodeGenerationTool()
         self.architecture_tool = ArchitectureTrackingTool()
+        self.file_operation_tool = FileOperationTool()
+        self.web_scraping_tool = WebScrapingTool()
+        self.manager_llm = ChatOpenAI(model="gpt-4o-mini")
 
-    # In the AIDevelopmentSystem class
-    def create_tasks(self, feature_description):
-        planning_task = Task(
-            description=f"Plan the implementation of the following feature: {feature_description}",
-            agent=self.agent_manager.get_agent("pm"),
-            expected_output="A detailed project plan including tasks and task allocation to each agent.",
-            output_file="project_plan.txt"
+    def create_initial_task(self, feature_description):
+        return Task(
+            description=f"Plan and outline the project for: {feature_description}",
+            agent=self.agent_manager.pm,
+            expected_output="A basic project plan with essential tasks."
         )
 
-        design_task = Task(
-            description="Design the system architecture for the planned feature",
-            agent=self.agent_manager.get_agent("architect"),
-            expected_output="A comprehensive system architecture document",
-            context=[planning_task],
-            output_file="system_architecture.txt"
+    def create_architect_task(self, task_description):
+        return Task(
+            description=f"Design the project structure for: {task_description}",
+            agent=self.agent_manager.architect,
+            execute=self.execute_architect_task,
+            expected_output="A simple folder and file structure."
         )
 
-        web_scraping_task = Task(
-            description=f"Scrape the web for information relevant to implementing {feature_description}. Focus on official documentation and API references.",
-            agent=self.agent_manager.get_agent("web_scraper"),
-            expected_output="Relevant, concise data extracted from authoritative sources, without examples unless explicitly needed.",
-            context=[design_task],
-            output_file="scraped_data.txt"
+    def execute_architect_task(self, task_description):
+        project_structure = self.manager_llm.predict(f"""
+        Create a simple and flexible project structure in VSCode for:
+        {task_description}
+        """)
+        
+        self.architecture_tool._run("set_structure", project_structure)
+        
+        return project_structure
+
+    def create_developer_task(self, task_description):
+        return Task(
+            description=f"Develop the feature: {task_description}",
+            agent=self.agent_manager.developer,
+            execute=self.execute_developer_task,
+            expected_output="Python code implementing the feature."
         )
 
-        architecture_structure = self.architecture_tool.run("get_structure")
+    def execute_developer_task(self, task_description):
+        file_path = self.architecture_tool._run("get_file_path", task_description)
+        implementation = self.manager_llm.predict(f"""
+        Write the code for: {task_description}
+        Adhere to the project structure and ensure the code is well-documented.
+        """)
+        
+        self.file_operation_tool._run("write", file_path, implementation)
+        
+        return f"Code written to {file_path}"
 
-        implement_task = Task(
-            description=f"Implement the designed feature: {feature_description}. The current architecture structure is as follows:\n{architecture_structure}",
-            agent=self.agent_manager.get_agent("developer"),
-            expected_output="Completed code implementation of the feature with appropriate file structure",
-            context=[],  # No additional context
-            output_file="implementation_report.txt"
+    def create_reviewer_task(self, task_description):
+        return Task(
+            description=f"Review the code for: {task_description}",
+            agent=self.agent_manager.reviewer,
+            execute=self.execute_reviewer_task,
+            expected_output="A brief code review report."
         )
 
-        review_task = Task(
-            description="Review the implemented code and ensure it aligns with the system architecture",
-            agent=self.agent_manager.get_agent("reviewer"),
-            expected_output="Code review report with suggestions for improvements",
-            context=[implement_task, design_task],
-            output_file="code_review_report.txt"
+    def execute_reviewer_task(self, task_description):
+        review = self.manager_llm.predict(f"""
+        Review the code for: {task_description}
+        Provide feedback on quality and best practices.
+        """)
+        return review
+
+    def create_devops_task(self, task_description):
+        return Task(
+            description=f"Prepare the deployment plan for: {task_description}",
+            agent=self.agent_manager.devops,
+            execute=self.execute_devops_task,
+            expected_output="A straightforward deployment plan."
         )
 
-        deploy_task = Task(
-            description="Prepare and execute the deployment of the new feature, considering the system architecture",
-            agent=self.agent_manager.get_agent("devops"),
-            expected_output="Deployment report including steps taken and any issues encountered",
-            context=[review_task, design_task],
-            output_file="deployment_report.txt"
+    def execute_devops_task(self, task_description):
+        plan = self.manager_llm.predict(f"""
+        Create a simple deployment plan for: {task_description}
+        Include setup, deployment commands, and rollback steps.
+        """)
+        return plan
+
+    def create_web_scraping_task(self, task_description):
+        return Task(
+            description=f"Plan web scraping for: {task_description}",
+            agent=self.agent_manager.web_scraper,
+            execute=self.execute_web_scraping_task,
+            expected_output="A basic web scraping plan."
         )
 
-        return [planning_task, design_task, web_scraping_task, implement_task, review_task, deploy_task]
+    def execute_web_scraping_task(self, task_description):
+        scraping_plan = self.manager_llm.predict(f"""
+        Create a web scraping plan for: {task_description}
+        Include target sites, data points, and storage method.
+        """)
+        return scraping_plan
 
     def run(self, feature_description):
+        tasks = [
+            self.create_initial_task(feature_description),
+            self.create_architect_task(feature_description),
+            self.create_developer_task(feature_description),
+            self.create_reviewer_task(feature_description),
+            self.create_devops_task(feature_description),
+            self.create_web_scraping_task(feature_description)
+        ]
         crew = Crew(
             agents=[
                 self.agent_manager.pm,
@@ -94,24 +119,21 @@ class AIDevelopmentSystem:
                 self.agent_manager.devops,
                 self.agent_manager.web_scraper
             ],
-            tasks=self.create_tasks(feature_description)
+            tasks=tasks,
+            process=Process.hierarchical,
+            manager_llm=self.manager_llm,
+            memory=True,
+            manager_agent=None,
+            planning=True,
         )
         result = crew.kickoff()
-        updated_architecture = self.architecture_tool.run("get_structure")
-        print("Updated Project Structure:")
-        print(updated_architecture)
-
         return result
-       
 
 def main():
     ai_system = AIDevelopmentSystem()
-    feature_description = "create a website to sell gsnus, a snus with no nicotine with natural herbs "
+    feature_description = "Create a website for gsnus, a natural no nicotine snus."
     result = ai_system.run(feature_description)
     print(result)
 
 if __name__ == "__main__":
     main()
-
-
-

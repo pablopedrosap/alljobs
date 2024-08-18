@@ -1,143 +1,72 @@
-import subprocess
 import os
 from crewai_tools import BaseTool
 import requests
 from bs4 import BeautifulSoup
-from urllib.parse import urlparse
-import re
-from pydantic import BaseModel, Field
-from typing import Dict, Any
-import time  
 
 class ArchitectureTrackingTool(BaseTool):
     name: str = "Architecture Tracking Tool"
-    description: str = "Tracks and manages project architecture, folders, and files"
-    architecture: Dict[str, Any] = Field(default_factory=dict)
+    description: str = "Manages project structure and file paths"
+    structure: dict = {}
 
-    def __init__(self):
-        super().__init__()
-        self.architecture = {
-            "src": {
-                "components": {},
-                "utils": {},
-                "services": {},
-                "tests": {}
-            },
-            "docs": {},
-            "config": {}
-        }
+    def _run(self, operation: str, content: dict = None) -> str:
+        if operation == "set_structure":
+            self.structure = content
+            self.create_project_structure(self.structure)
+            return "Structure created."
+        elif operation == "get_file_path":
+            return self.get_file_path(content) if content else "src/main.py"
+        return "Invalid operation."
 
-    def _run(self, operation: str, path: str = "", file_type: str = "") -> str:
-        if operation == "add_file":
-            return self._add_file(path, file_type)
-        elif operation == "get_structure":
-            return self._get_structure_string()
-        else:
-            return "Invalid operation. Use 'add_file' or 'get_structure'."
-
-    def _add_file(self, path: str, file_type: str) -> str:
-        parts = path.split('/')
-        current = self.architecture
-        for part in parts[:-1]:
-            if part not in current:
-                current[part] = {}
-            current = current[part]
-        current[parts[-1]] = file_type
-
-        # Ensure the directory exists
-        directory = os.path.dirname(path)
-        if not os.path.exists(directory):
-            os.makedirs(directory)
-
-        return f"File added: {path} (Type: {file_type})"
-    
-    def _get_structure_string(self, structure: dict = None, indent: int = 0) -> str:
-        if structure is None:
-            structure = self.architecture
-        result = ""
+    def create_project_structure(self, structure: dict, root_path: str = "."):
         for key, value in structure.items():
-            result += "  " * indent + key + "\n"
+            path = os.path.join(root_path, key)
             if isinstance(value, dict):
-                result += self._get_structure_string(value, indent + 1)
-        return result
-    
+                os.makedirs(path, exist_ok=True)
+                self.create_project_structure(value, root_path=path)
+            else:
+                with open(path, 'w') as file:
+                    pass
 
-class VSCodeTool(BaseTool):
-    name: str = "VS Code Interaction Tool"
-    description: str = "Interacts with VS Code to perform coding tasks"
+    def get_file_path(self, task_description: str) -> str:
+        keywords = task_description.lower().split()
+        return self.search_structure(self.structure, keywords) or "src/main.py"
 
-    def _run(self, command: str) -> str:
-        try:
-            result = subprocess.run(f"code {command}", shell=True, check=True, capture_output=True, text=True)
-            return f"VS Code command executed: {result.stdout}"
-        except subprocess.CalledProcessError as e:
-            return f"Error executing VS Code command: {e.stderr}"
-
-class GitTool(BaseTool):
-    name: str = "Improved Git Operations Tool"
-    description: str = "Performs Git operations with better error handling and abstraction"
-
-    def _run(self, operation: str, retry_count: int = 3) -> str:
-        for attempt in range(retry_count):
-            try:
-                result = subprocess.run(f"git {operation}", shell=True, check=True, capture_output=True, text=True)
-                return f"Git operation executed successfully: {result.stdout}"
-            except subprocess.CalledProcessError as e:
-                if attempt == retry_count - 1:
-                    return f"Error executing Git operation after {retry_count} attempts: {e.stderr}"
-                time.sleep(2)  # Wait before retrying
-
-    def commit_changes(self, message: str) -> str:
-        return self._run(f"commit -am '{message}'")
-
-    def push_to_remote(self, branch: str = "main") -> str:
-        return self._run(f"push origin {branch}")
-
-
-class CodeAnalysisTool(BaseTool):
-    name: str = "Code Analysis Tool"
-    description: str = "Analyzes code for quality and suggests improvements"
-
-    def _run(self, file_path: str) -> str:
-        try:
-            # Using pylint for Python code analysis
-            result = subprocess.run(f"pylint {file_path}", shell=True, capture_output=True, text=True)
-            return f"Code analysis result:\n{result.stdout}"
-        except subprocess.CalledProcessError as e:
-            return f"Error during code analysis: {e.stderr}"
+    def search_structure(self, structure: dict, keywords: list, current_path: str = "") -> str:
+        for key, value in structure.items():
+            if isinstance(value, dict):
+                found_path = self.search_structure(value, keywords, os.path.join(current_path, key))
+                if found_path:
+                    return found_path
+            elif any(keyword in key.lower() for keyword in keywords):
+                return os.path.join(current_path, key)
+        return None
 
 class FileOperationTool(BaseTool):
     name: str = "File Operation Tool"
-    description: str = "Performs file operations like reading and writing"
+    description: str = "Handles file reading and writing"
 
     def _run(self, operation: str, file_path: str, content: str = "") -> str:
         directory = os.path.dirname(file_path)
-        
-        # Ensure the directory exists
-        if not os.path.exists(directory):
-            os.makedirs(directory)
+        os.makedirs(directory, exist_ok=True)
         
         if operation == "read":
             try:
                 with open(file_path, 'r') as file:
-                    content = file.read()
-                    return content if content else "File is empty"
+                    return file.read()
             except IOError as e:
                 return f"Error reading file: {str(e)}"
         elif operation == "write":
             try:
                 with open(file_path, 'w') as file:
                     file.write(content)
-                return f"Content written to {file_path}"
+                return f"Written to {file_path}"
             except IOError as e:
                 return f"Error writing to file: {str(e)}"
-        else:
-            return "Invalid operation. Use 'read' or 'write'."
-
+        return "Invalid operation."
 
 class WebScrapingTool(BaseTool):
     name: str = "Web Scraping Tool"
-    description: str = "Tool to scrape web pages and extract relevant data"
+    description: str = "Extracts data from web pages"
 
     def _run(self, url: str, target_info: str) -> str:
         try:
@@ -145,51 +74,12 @@ class WebScrapingTool(BaseTool):
             response.raise_for_status()
             soup = BeautifulSoup(response.text, 'html.parser')
 
-            # Extract domain for potential filtering
-            domain = urlparse(url).netloc
-
-            # Define extraction strategies based on target_info
-            extraction_strategies = {
-                "main_content": self._extract_main_content,
-                "headings": self._extract_headings,
-                "links": self._extract_links,
-                "code_snippets": self._extract_code_snippets
-            }
-
-            if target_info in extraction_strategies:
-                return extraction_strategies[target_info](soup, domain)
-            else:
-                return f"Unsupported target_info: {target_info}. Please use one of: {', '.join(extraction_strategies.keys())}"
+            if target_info == "main_content":
+                main_content = soup.find('main') or soup.find('article') or soup.find('div', class_='content')
+                return main_content.get_text(strip=True) if main_content else "Content not found."
+            elif target_info == "links":
+                return "\n".join(link['href'] for link in soup.find_all('a', href=True))
+            return f"Unsupported target_info: {target_info}"
 
         except requests.RequestException as e:
             return f"Error scraping the web: {str(e)}"
-
-    def _extract_main_content(self, soup, domain):
-        # Attempt to find the main content area
-        main_content = soup.find('main') or soup.find('article') or soup.find('div', class_=re.compile(r'content|main'))
-        if main_content:
-            return main_content.get_text(strip=True)
-        return "Main content could not be identified."
-
-    def _extract_headings(self, soup, domain):
-        headings = soup.find_all(['h1', 'h2', 'h3'])
-        return "\n".join([h.get_text(strip=True) for h in headings])
-
-    def _extract_links(self, soup, domain):
-        links = soup.find_all('a', href=True)
-        relevant_links = [link['href'] for link in links if domain in link['href'] or link['href'].startswith('/')]
-        return "\n".join(relevant_links)
-
-    def _extract_code_snippets(self, soup, domain):
-        code_snippets = soup.find_all('code')
-        return "\n\n".join([snippet.get_text(strip=True) for snippet in code_snippets])
-
-        
-class CodeGenerationTool(BaseTool):
-    name: str = "Code Generation Tool"
-    description: str = "Generates code snippets based on provided inputs"
-
-    def _run(self, template: str, context: dict) -> str:
-        # Simplified code generation example
-        code = template.format(**context)
-        return code

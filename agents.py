@@ -29,7 +29,7 @@ class ArchitectAgent(Agent):
             role='System Architect',
             goal='Design simple and flexible architectures',
             backstory="Architect creating basic structures for software projects.",
-            tools=[ArchitectureTrackingTool()],
+            tools=[],
             verbose=True,
             llm=llm4o
         )
@@ -40,7 +40,7 @@ class DeveloperAgent(Agent):
             role='Software Developer',
             goal='Implement features with clean, adaptable code',
             backstory="Developer writing efficient code within defined structures.",
-            tools=[FileOperationTool(), ArchitectureTrackingTool()],
+            tools=[FileOperationTool()],
             verbose=True,
             llm=llm4o
         )

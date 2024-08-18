@@ -5,7 +5,7 @@ from bs4 import BeautifulSoup
 
 class ArchitectureTrackingTool(BaseTool):
     name: str = "Architecture Tracking Tool"
-    description: str = "Manages project structure and file paths"
+    description: str = "Manages project structure and file paths, operation is set_structure or get_file_path"
     structure: dict = {}
 
     def _run(self, operation: str, content: dict = None) -> str:
@@ -15,7 +15,7 @@ class ArchitectureTrackingTool(BaseTool):
             return "Structure created."
         elif operation == "get_file_path":
             return self.get_file_path(content) if content else "src/main.py"
-        return "Invalid operation."
+        return "Invalid operation, use set_structure or get_file_path."
 
     def create_project_structure(self, structure: dict, root_path: str = "."):
         for key, value in structure.items():
@@ -62,7 +62,7 @@ class FileOperationTool(BaseTool):
                 return f"Written to {file_path}"
             except IOError as e:
                 return f"Error writing to file: {str(e)}"
-        return "Invalid operation."
+        return "Invalid operation, use read or write."
 
 class WebScrapingTool(BaseTool):
     name: str = "Web Scraping Tool"

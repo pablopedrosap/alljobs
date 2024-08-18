@@ -30,7 +30,7 @@ class AIDevelopmentSystem:
     def execute_architect_task(self, task_description):
         project_structure = self.manager_llm.predict(f"""
         Create a simple and flexible project structure in VSCode for:
-        {task_description}
+        {task_description}    use the tool with set_structure operation.
         """)
         
         self.architecture_tool._run("set_structure", project_structure)

@@ -4,7 +4,7 @@ from tools import FileOperationTool, ArchitectureTrackingTool, WebScrapingTool
 
 llm4o = ChatOpenAI(model="gpt-4o-mini")
 
-class AgentManager:
+class AgentManager():
     def __init__(self):
         self.pm = ProjectManagerAgent()
         self.architect = ArchitectAgent()
@@ -17,8 +17,8 @@ class ProjectManagerAgent(Agent):
     def __init__(self):
         super().__init__(
             role='Project Manager',
-            goal='Plan and manage development tasks',
-            backstory="Experienced PM creating simple plans for software projects.",
+            goal='Plan, delegate, and manage development tasks',
+            backstory="Experienced PM creating and overseeing project plans for software projects.",
             verbose=True,
             llm=llm4o
         )
@@ -27,12 +27,19 @@ class ArchitectAgent(Agent):
     def __init__(self):
         super().__init__(
             role='System Architect',
-            goal='Design simple and flexible architectures',
+            goal='Design simple and flexible architectures, you focus on making as few files as possible to be simplistic.',
             backstory="Architect creating basic structures for software projects.",
-            tools=[],
+            tools=[ArchitectureTrackingTool()],
             verbose=True,
             llm=llm4o
         )
+
+    def set_project_structure(self, project_name, structure):
+        """
+        Sets the project structure within the 'structure' directory.
+        """
+        structure_root = f"structures/{project_name}"
+        self.tools[0]._run("set_structure", {"project": structure_root, "structure": structure})
 
 class DeveloperAgent(Agent):
     def __init__(self):
@@ -40,7 +47,7 @@ class DeveloperAgent(Agent):
             role='Software Developer',
             goal='Implement features with clean, adaptable code',
             backstory="Developer writing efficient code within defined structures.",
-            tools=[FileOperationTool()],
+            tools=[FileOperationTool(), ArchitectureTrackingTool()],
             verbose=True,
             llm=llm4o
         )

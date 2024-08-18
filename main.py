@@ -14,26 +14,47 @@ class AIDevelopmentSystem:
 
     def create_initial_task(self, feature_description):
         return Task(
-            description=f"Plan and outline the project for: {feature_description}",
+            description=f"Plan simply and outline the project for: {feature_description}",
             agent=self.agent_manager.pm,
             expected_output="A basic project plan with essential tasks."
         )
 
     def create_architect_task(self, task_description):
         return Task(
-            description=f"Design the project structure for: {task_description}",
+            description=f"Design the project structure for: {task_description}.",
             agent=self.agent_manager.architect,
             execute=self.execute_architect_task,
-            expected_output="A simple folder and file structure."
+            expected_output="""much simplified version with this example format ---> project_structure = {
+                "src": {
+                    "components": ["header.js", "footer.js"],
+                    "pages": ["home.js", "about.js"],
+                    "styles": ["main.css", "theme.css"],
+                    "utils": ["helpers.py", "validators.py"]
+                },
+                "tests": {
+                    "unit": ["test_helpers.py", "test_validators.py"],
+                    "integration": ["test_integration.py"]
+                },
+                "assets": {
+                    "images": ["logo.png", "banner.jpg"],
+                    "fonts": ["custom.ttf"]
+                },
+                "docs": ["README.md", "CONTRIBUTING.md"],
+                "scripts": {
+                    "deployment": ["deploy.sh"],
+                    "setup": ["setup.sh"]
+                }
+            }."""   
         )
 
     def execute_architect_task(self, task_description):
         project_structure = self.manager_llm.predict(f"""
-        Create a simple and flexible project structure in VSCode for:
-        {task_description}    use the tool with set_structure operation.
+        Create a simple and flexible project structure in JSON format for:
+        {task_description}.
+        The structure should include file paths that can be used directly in subsequent tasks.
         """)
         
-        self.architecture_tool._run("set_structure", project_structure)
+        self.architecture_tool._run("set_structure", {"structure": project_structure})
         
         return project_structure
 
@@ -46,15 +67,17 @@ class AIDevelopmentSystem:
         )
 
     def execute_developer_task(self, task_description):
-        file_path = self.architecture_tool._run("get_file_path", task_description)
+        # Assuming task_description contains relevant file name or task description
+        file_path_prompt = self.architecture_tool._run("get_file_path", {"task_description": task_description})
         implementation = self.manager_llm.predict(f"""
         Write the code for: {task_description}
-        Adhere to the project structure and ensure the code is well-documented.
+        The file should be saved at: {file_path_prompt}.
+        Ensure the code is well-documented.
         """)
         
-        self.file_operation_tool._run("write", file_path, implementation)
+        self.file_operation_tool._run("write", {"file_path": file_path_prompt, "content": implementation})
         
-        return f"Code written to {file_path}"
+        return f"Code written to {file_path_prompt}"
 
     def create_reviewer_task(self, task_description):
         return Task(

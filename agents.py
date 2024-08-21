@@ -39,7 +39,7 @@ class DeveloperAgent(Agent):
         super().__init__(
             role='Software Developer',
             goal='Implement features with clean, adaptable code. You always make sure that you are writing to the correct file path by tracking the architecture',
-            backstory="Developer writing efficient code within defined structures.",
+            backstory="Developer writing efficient code within defined structures, you are a proffessional who never leaves things unfinished or half done, you love pushing the limits.",
             tools=[FileOperationTool(), DocumentationExtractionTool(), HTMLExtractionTool()],
             verbose=True,
             llm=llm4o
@@ -49,8 +49,8 @@ class CodeReviewerAgent(Agent):
     def __init__(self):
         super().__init__(
             role='Code Reviewer',
-            goal='You must ensure that the code is fully finished with no code placeholders. Review code for quality and best practices',
-            backstory="Reviewer ensuring code meets quality standards, give feedback to the deeloper agent.",
+            goal='You must ensure that the code is fully finished with no code placeholders. Review code for quality and best practices, ensure the full job is done. **If you can not read a file try checking file path twice and if nothing, continue**.',
+            backstory="Reviewer ensuring code meets quality standards, give feedback to the deeloper agent. Famous for being intolerant with basic code and wants the best proffessional efficiency without redundancies or corporative code.",
             tools=[FileOperationTool()],
             verbose=True,
             llm=llm4o

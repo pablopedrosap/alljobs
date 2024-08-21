@@ -17,31 +17,30 @@ class AIDevelopmentSystem:
             description=f"Design the project structure for: {task_description}.",
             agent=self.agent_manager.architect,
             output_format="JSON",
-            expected_output="""Only JSON structure(nothing before or after) defining the project directories and files. ***this is just an Example to know the exact format, no comments or explanations. No folders within folders and all files in lists.:
-                            
-            {
+            expected_output="""No folders within folders and all files in lists. just output the structure...  example format-> {
                 "project": "my_data_analysis_project",
-                {"structure": {
-                    "data": ["data_file_1.csv", "data_file_2.xlsx"]},{
-                    "notebooks": ["data_exploration.ipynb", "model_training.ipynb"]},{
-                    "scripts": ["preprocess_data.py", "train_model.py", "evaluate_model.py"]}
+                "structure": {
+                    "data": ["data_file_1.csv", "data_file_2.xlsx"],
+                    "notebooks": ["data_exploration.ipynb", "model_training.ipynb"],
+                    "scripts": ["preprocess_data.py", "train_model.py", "evaluate_model.py"],
+                    ["main.py", whatever.py],
                 }
-            } 
-            """
+            }"""
         )
 
-    def create_developer_task(self, task_description, project_structure, project_name):
+    def create_developer_task(self, task_description, project_structure, project_name, feedback=''):
+        feedback_text = f"{feedback}. " if feedback else ''
         return Task(
-            description=f"Develop the feature: {task_description}. this is the project tree: {project_structure}, with project name: {project_name}",
+            description=f"{feedback_text} Develop the feature: {task_description}. This is the project tree: {project_structure}, starting file path with project name: {project_name}, and given the tree ensure the file path when calling the tool is correct.",
             agent=self.agent_manager.developer,
-            expected_output="Full Software code implementing the feature using complete code and open source libraries if necessary."
+            expected_output=f"Full Software code implementing the feature using complete code and open source libraries if necessary, complete all code files within the tree structure: {project_structure}."
         )
 
     def create_reviewer_task(self, task_description, project_structure, project_name):
         return Task(
-            description=f"Review the code for: {task_description}.  this is the project tree: {project_structure}, with project name: {project_name}",
+            description=f"Review the code for: {task_description}, read all code files within the tree structure. This is the project tree: {project_structure}, starting file path with project name: {project_name}, and given the tree ensure the file path when calling the tool is correct.",
             agent=self.agent_manager.reviewer,
-            expected_output="A brief code review report."
+            expected_output=f"**Include 'Not finished' in the review if developer has still job to do.** Provide a detailed code review report and proper feedback that will go to developer to improve the code, just focus on efficacy and extreme human like detail as steve jobs would, but do not overcomplicate. **for file paths:{project_structure}.**"
         )
 
     def create_devops_task(self, task_description):
@@ -64,8 +63,9 @@ class AIDevelopmentSystem:
         project_name = set_architecture(json.loads(project_structure))
 
         # Developer stage
+        feedback=''
         while True:
-            developer_task = self.create_developer_task(feature_description, project_structure, project_name)
+            developer_task = self.create_developer_task(feature_description, project_structure, project_name, feedback)
             developer_crew = Crew(
                 agents=[self.agent_manager.developer],
                 tasks=[developer_task],
@@ -83,8 +83,10 @@ class AIDevelopmentSystem:
                 memory=True,
             )
             review_output = str(reviewer_crew.kickoff())
-            if 'not_finished' not in review_output.lower():
+            feedback = f'This is the feedback from the reviewer from the code you have done: ***{review_output}***.'
+            if 'not finished' not in review_output.lower():
                 break
+    
 
         # DevOps stage
         devops_task = self.create_devops_task(feature_description)
@@ -105,7 +107,7 @@ class AIDevelopmentSystem:
 
 def main():
     ai_system = AIDevelopmentSystem()
-    feature_description = "create a website for photography in madrid, eleina scarced."
+    feature_description = "Crea un pagina web de 1 página solo en la que haya un cuadrado flotante de color verde que gire a medida que bajas la página."
     result = ai_system.run(feature_description)
     print(result)
 

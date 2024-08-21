@@ -7,6 +7,36 @@ from typing import List, Dict, Any
 from playwright.sync_api import sync_playwright
 import json
 
+def set_architecture(content):
+
+    def create_file(file_path):
+        directory = os.path.dirname(file_path)
+        os.makedirs(directory, exist_ok=True)
+        with open(file_path, 'w') as file:
+            file.write("")
+
+    def create_directory(directory_path):
+        os.makedirs(directory_path, exist_ok=True)
+
+    def create_project_structure(structure, root_path):
+        for key, value in structure.items():
+            directory_path = os.path.join(root_path, key)
+            create_directory(directory_path)
+            if isinstance(value, list):
+                for item in value:
+                    file_path = os.path.join(directory_path, item)
+                    create_file(file_path)
+            elif isinstance(value, dict):
+                create_project_structure(value, root_path=directory_path)
+            else:
+                raise ValueError(f"Unexpected structure format: {key} -> {value}")
+    
+    project_name = content.get("project", "default_project")
+    structure = content.get("structure", {})
+    create_project_structure(structure, root_path=project_name)
+
+    return project_name
+
 class TerminalTool(BaseTool):
     name: str = "Terminal Tool"
     description: str = "Executes terminal commands and performs file operations"
@@ -26,47 +56,12 @@ class TerminalTool(BaseTool):
         except subprocess.CalledProcessError as e:
             return f"Error executing command: {e.stderr}"
         
-def set_architecture(content):
-
-    def create_file(file_path):
-        directory = os.path.dirname(file_path)
-        os.makedirs(directory, exist_ok=True)
-        with open(file_path, 'w') as file:
-            file.write("")
-
-    def create_directory(directory_path):
-        os.makedirs(directory_path, exist_ok=True)
-
-    def create_project_structure(structure, root_path):
-        for key, value in structure.items():
-            if isinstance(value, list):
-                for item in value:
-                    file_path = os.path.join(root_path, item)
-                    create_file(file_path)
-            elif isinstance(value, dict):
-                directory_path = os.path.join(root_path, key)
-                create_directory(directory_path)
-                create_project_structure(value, root_path=directory_path)
-            elif isinstance(value, str):
-                file_path = os.path.join(root_path, value)
-                create_file(file_path)
-            else:
-                raise ValueError(f"Unexpected structure format: {key} -> {value}")
-            
-   
-    project_name = content.get("project", "default_project")
-    structure = content.get("structure", {})
-    create_project_structure(structure, root_path=project_name)
-
-    return project_name
-        
 class FileOperationTool(BaseTool):
     name: str = "File Operation Tool"
     description: str = "Handles file reading and writing. The call of function is: (operation: str, file_path: str, content: str)"
 
     def _run(self, operation: str, file_path: str, content: str, project_name: str) -> str:
-        # Ensuring that file operations happen within the 'structures' directory
-        file_path = os.path.join(project_name, file_path)
+        
         directory = os.path.dirname(file_path)
         os.makedirs(directory, exist_ok=True)
 

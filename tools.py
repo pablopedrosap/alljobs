@@ -6,7 +6,16 @@ import subprocess
 from typing import List, Dict, Any
 from playwright.sync_api import sync_playwright
 import json
+import base64
 
+class HumanInputTool(BaseTool):
+    name: str = "Human Input Tool"
+    description: str = "Requests input from a human user when needed"
+
+    def _run(self, prompt: str) -> str:
+        print(f"\nHuman input required: {prompt}")
+        return input("Your response: ")
+    
 def set_architecture(content):
 
     def create_file(file_path):
@@ -58,7 +67,7 @@ class TerminalTool(BaseTool):
         
 class FileOperationTool(BaseTool):
     name: str = "File Operation Tool"
-    description: str = "Handles file reading and writing. The call of function is: (operation: str, file_path: str, content: str)"
+    description: str = "Handles file reading and writing. When reading a file, it might be empty and ready to be written."
 
     def _run(self, operation: str, file_path: str, content: str, project_name: str) -> str:
         
@@ -191,3 +200,4 @@ class DocumentationExtractionTool(BaseTool):
         code_snippets = [pre.get_text() for pre in soup.find_all('pre')][:max_code_snippets]
         headers = [h.get_text() for h in soup.find_all(['h1', 'h2', 'h3'])]
         return {'headers': headers, 'code_snippets': code_snippets}
+    

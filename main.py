@@ -2,7 +2,7 @@ import os
 from crewai import Crew, Task, Process
 from langchain_openai import ChatOpenAI
 from agents import AgentManager
-from tools import FileOperationTool, TerminalTool, HTMLExtractionTool, DocumentationExtractionTool, set_architecture
+from tools import FileOperationTool, TerminalTool, DocumentationExtractionTool, set_architecture
 import subprocess
 import json
 
@@ -12,103 +12,101 @@ class AIDevelopmentSystem:
         self.file_operation_tool = FileOperationTool()
         self.manager_llm = ChatOpenAI(model="gpt-4o-mini")
 
-    def create_architect_task(self, task_description):
+    def classify_task(self, feature_description):
+        classification_task = Task(
+            description=f"Classify the automation task and identify required specialized agents: {feature_description}",
+            agent=self.agent_manager.classifier
+        )
+        classification_crew = Crew(
+            agents=[self.agent_manager.classifier],
+            tasks=[classification_task],
+            process=Process.sequential
+        )
+        return classification_crew.kickoff()
+    
+    def generate_json_plan(self, feature_description):
+        # Use an LLM to generate a structured JSON plan
+        plan_task = Task(
+            description=f"Generate a detailed JSON plan for: {feature_description}. Max 10 super specific steps. no timeline just actionable steps that can be implemented in code.",
+            agent=self.agent_manager.planner,
+            output_format="JSON"
+        )
+        plan_crew = Crew(
+            agents=[self.agent_manager.planner],
+            tasks=[plan_task],
+            process=Process.sequential
+        )
+        return json.loads(plan_crew.kickoff())
+
+    def create_architect_task(self, json_plan):
         return Task(
-            description=f"Design the project structure for: {task_description}.",
+            description=f"Design the project structure based on this plan: {json_plan}",
             agent=self.agent_manager.architect,
             output_format="JSON",
-            expected_output="""No folders within folders and all files in lists. just output the structure...  example format-> {
+            expected_output="""**No folders within folders and keep it really simple**. just output the structure...  example format-> {
                 "project": "my_data_analysis_project",
                 "structure": {
                     "data": ["data_file_1.csv", "data_file_2.xlsx"],
-                    "notebooks": ["data_exploration.ipynb", "model_training.ipynb"],
-                    "scripts": ["preprocess_data.py", "train_model.py", "evaluate_model.py"],
-                    ["main.py", whatever.py],
+                    "tests": ["xx.py", "xx.py"],
+                    ["main.py", "whatever.py"],
                 }
             }"""
         )
+    def identify_relevant_files(self, step, project_structure):
+        # Logic to identify which files are relevant for the current step
+        pass
 
-    def create_developer_task(self, task_description, project_structure, project_name, feedback=''):
-        feedback_text = f"{feedback}. " if feedback else ''
-        return Task(
-            description=f"{feedback_text} Develop the feature: {task_description}. This is the project tree: {project_structure}, starting file path with project name: {project_name}, and given the tree ensure the file path when calling the tool is correct.",
-            agent=self.agent_manager.developer,
-            expected_output=f"Full Software code implementing the feature using complete code and open source libraries if necessary, complete all code files within the tree structure: {project_structure}."
-        )
-
-    def create_reviewer_task(self, task_description, project_structure, project_name):
-        return Task(
-            description=f"Review the code for: {task_description}, read all code files within the tree structure. This is the project tree: {project_structure}, starting file path with project name: {project_name}, and given the tree ensure the file path when calling the tool is correct.",
-            agent=self.agent_manager.reviewer,
-            expected_output=f"**Include 'Not finished' in the review if developer has still job to do.** Provide a detailed code review report and proper feedback that will go to developer to improve the code, just focus on efficacy and extreme human like detail as steve jobs would, but do not overcomplicate. **for file paths:{project_structure}.**"
-        )
-
-    def create_devops_task(self, task_description):
-        return Task(
-            description=f"Prepare the deployment plan for: {task_description}",
-            agent=self.agent_manager.devops,
-            expected_output="A straightforward deployment plan."
-        )
+    def execute_step(self, step, relevant_files, project_structure, json_plan):
+        for file in relevant_files:
+            file_content = self.file_operation_tool.read_file(file)
+            context = self.context_extraction_tool.extract_context(file_content)
+            task_type = self.classify_task(json_plan)
+            specialized_agent = task_type['required_agent']
+            
+            while True:
+                dev_task = Task(
+                    description=f"Implement {step} for file {file}. If you need any clarification or additional information, use the HumanInputTool.",
+                    agent=specialized_agent,
+                    context=context,
+                    expected_output=f""
+                )
+                dev_crew = Crew(agents=[specialized_agent], tasks=[dev_task])
+                implementation = dev_crew.kickoff()
+                
+                review_task = Task(
+                    description=f"Review implementation of {step} for file {file}",
+                    agent=self.agent_manager.reviewer,
+                    context=context,
+                    expected_output=f""
+                )
+                review_crew = Crew(agents=[self.agent_manager.reviewer], tasks=[review_task])
+                review = review_crew.kickoff()
+                
+                if review['status'] == 'complete':
+                    self.file_operation_tool.write_file(file, implementation)
+                    break
+                
+                else:
+                    context += f"\nReview feedback: {review['feedback']}"
 
     def run(self, feature_description):
-        # Architect stage
-        architect_task = self.create_architect_task(feature_description)
-        architect_crew = Crew(
-            agents=[self.agent_manager.architect],
-            tasks=[architect_task],
-            process=Process.sequential,
-            memory=True,
-        )
-        project_structure = str(architect_crew.kickoff())
-        project_name = set_architecture(json.loads(project_structure))
-
-        # Developer stage
-        feedback=''
-        while True:
-            developer_task = self.create_developer_task(feature_description, project_structure, project_name, feedback)
-            developer_crew = Crew(
-                agents=[self.agent_manager.developer],
-                tasks=[developer_task],
-                process=Process.sequential,
-                memory=True,
-            )
-            code_output = developer_crew.kickoff()
-
-            # Reviewer stage
-            reviewer_task = self.create_reviewer_task(feature_description, project_structure, project_name)
-            reviewer_crew = Crew(
-                agents=[self.agent_manager.reviewer],
-                tasks=[reviewer_task],
-                process=Process.sequential,
-                memory=True,
-            )
-            review_output = str(reviewer_crew.kickoff())
-            feedback = f'This is the feedback from the reviewer from the code you have done: ***{review_output}***.'
-            if 'not finished' not in review_output.lower():
-                break
-    
-
-        # DevOps stage
-        devops_task = self.create_devops_task(feature_description)
-        devops_crew = Crew(
-            agents=[self.agent_manager.devops],
-            tasks=[devops_task],
-            process=Process.sequential,
-            memory=True,
-        )
-        deployment_plan = devops_crew.kickoff()
-
-        return {
-            "project_structure": project_structure,
-            "code_output": code_output,
-            "review_output": review_output,
-            "deployment_plan": deployment_plan
-        }
+        json_plan = self.generate_json_plan(feature_description)
+        
+        architect_task = self.create_architect_task(json_plan)
+        architect_crew = Crew(agents=[self.agent_manager.architect], tasks=[architect_task])
+        project_structure = architect_crew.kickoff()
+        
+        for step in json_plan['steps']:
+            relevant_files = self.identify_relevant_files(step, project_structure)
+            self.execute_step(step, relevant_files, project_structure, json_plan)
+        
 
 def main():
     ai_system = AIDevelopmentSystem()
-    feature_description = "Crea un pagina web de 1 página solo en la que haya un cuadrado flotante de color verde que gire a medida que bajas la página."
-    result = ai_system.run(feature_description)
+    feature_description = "This project automates core aspects of rental management for platforms like Airbnb and Booking.com, including calendar synchronization, dynamic pricing, guest communication, and financial reporting."
+    project_name = ""
+
+    result = ai_system.run(feature_description, project_name)
     print(result)
 
 if __name__ == "__main__":
@@ -116,4 +114,13 @@ if __name__ == "__main__":
 
 
 
-#single crews-> architect, loop coder(tools: docu&api searcher, webscraping for automation) + reviewer(tools: terminal, vision), git, devops... .. 
+# specifically codes automation scripts, not general software.
+# classifier llm for pipeline and direct to specific dev agent with specific doscs.
+# human in the loop for needed data, doubts, or logins
+# 
+# input parsing (json with empty values and steps) - automation script generation (with llms) - testing - development and scheduling.
+
+# Node.js, react, PyTorch, Scikit-learn, unity, Google Cloud APIs, Docker, openai and crewai frameworks 
+# the developer is not one, there is a developer per function expert in the above frameworks.
+
+

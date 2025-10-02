@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.env
+.venv
+venv/
+*.log
+.DS_Store
+*.pyc
+*.pyo
+generated_projects/
